@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Wallpaper Shader Physics Test</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel=stylesheet href="style.css"/>
+</head>
+<body>
+
+	<!-- Library Scripts -->
+	<script type="text/javascript" src="/three_80.js"></script>
+	<script type="text/javascript" src="/GPUComputationRenderer.js"></script>
+
+	<!-- Custom shaders -->
+
+	<div id="container"></div>
+
+   <!-- <script id="texture_vertex_simulation_shader" type="x-shader/x-vertex">
+        
+   //      varying vec2 vUv;
+
+	  //   void main() {
+
+		 //    vUv = vec2(uv.x, 1.0 - uv.y);
+			// gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+	  //   }
+
+   </script>-->
+
+    <script id="position_fragment_shader" type="x-shader/x-fragment">	
+        // This shader handles only the math to move the various points. Adding the sprites and point opacity comes in the following shader.
+		// simulation			
+	    // uniform sampler2D tGridPositions;
+	    uniform sampler2D tOffsets; 
+	    uniform float uTime;
+	    uniform float uXOffW;
+
+	    varying vec2 vUv;
+
+	    float hash(float n) { return fract(sin(n) * 1e4); }
+	    
+	    float noise(float x) {
+	        float i = floor(x);
+	        float f = fract(x);
+	        float u = f * f * (3.0 - 2.0 * f);
+	        return mix(hash(i), hash(i + 1.0), u);
+	    }
+			
+	    void main() {
+
+	    	vec2 uv = gl_FragCoord.xy / resolution.xy;
+	            
+	        float damping = 0.98;
+	            
+	        vec4 nowPos = texture2D( tPositions, uv ).xyzw;
+	        // vec4 gridPosition = texture2D( tGridPositions, vUv ).xyzw;
+	        vec4 offsets = texture2D( tOffsets, uv ).xyzw;
+	        vec2 velocity = vec2(nowPos.z, nowPos.w);
+	                      
+	        float anchorHeight = 100.0;
+	        // float yAnchor = anchorHeight - gridPosition.y;
+	        float yAnchor = anchorHeight;
+	        vec2 anchor = vec2( -(uTime * 50.0) + offsets.x, yAnchor + (noise(uTime) * 30.0) );
+	        // vec2 anchor = vec2( offsets.x, yAnchor );
+
+	        // Newton's law: F = M * A
+	        float mass = 24.0;
+	        vec2 acceleration = vec2(0.0, 0.0);
+	        
+	        // 1. apply gravity's force:
+	        vec2 gravity = vec2(0.0, 2.0);
+	        gravity /= mass;
+	        acceleration += gravity;
+	        
+	        // 2. apply wind force:
+	        vec2 wind = vec2( -noise(uXOffW), 0.0 );
+	        wind /= mass;
+	        acceleration += wind;
+	        
+	        // 3. apply the spring force
+	        float restLength = yAnchor - offsets.y;
+	        float springConstant = 0.2;
+	        
+	        // Vector pointing from anchor to point position
+	        vec2 springForce = vec2(nowPos.x - anchor.x, nowPos.y - anchor.y);
+	        // length of the vector
+	        float distance = length( springForce );
+	        // stretch is the difference between the current distance and restLength
+	        float stretch =  distance - restLength;
+	        
+	        // Calculate springForce according to Hooke's Law
+	        springForce = normalize(springForce);
+	        springForce *= (springConstant * stretch);
+	        
+	        springForce /= mass;
+	        acceleration += springForce;
+	        
+	        velocity += acceleration;
+	        velocity *= damping;
+
+	        vec2 newPosition = vec2(nowPos.x - velocity.x, nowPos.y - velocity.y);
+
+	        // Write new position out
+	        gl_FragColor = vec4(newPosition.x, newPosition.y, velocity.x, velocity.y);
+            
+            // sanity checks
+            // gl_FragColor = vec4(newPosition.x, newPosition.y, 0.0, 0.0);
+            // gl_FragColor = vec4( gridPosition.x, gridPosition.y, velocity );
+	        // gl_FragColor = vec4( gridPosition.x + offsets.x, gridPosition.y + offsets.y, velocity );
+	        // gl_FragColor = vec4( gridPosition.x + offsets.x, gridPosition.y + offsets.y, velocity );
+	        // gl_FragColor = vec4( offsets.x, offsets.y, velocity );
+		    // gl_FragColor = vec4(nowPos.x, nowPos.y, 0.0, 0.0);
+	   }
+	</script>
+
+	<!-- zz85 - end simulations -->
+	    
+	<script id="vs-particles" type="x-shader/x-vertex">
+
+	    uniform sampler2D tPositions;
+
+		uniform float width;
+	    uniform float height;
+        
+        uniform float uTextureCoordSizeX; // vertical dimension of each texture given the full side = 1
+        uniform float uTextureCoordSizeY; // horizontal dimension of each texture given the full side = 1
+	    uniform float pointSize;
+
+	    attribute float aTextureIndex;
+
+	    varying vec2 vTextureCoords;
+        varying vec2 vTextureSize;
+
+
+		void main() {
+
+			vTextureCoords = vec2( aTextureIndex * uTextureCoordSizeX, 0 );
+            vTextureSize = vec2( uTextureCoordSizeX, uTextureCoordSizeY );
+
+			vec4 tmpPos = texture2D( tPositions, position.xy );
+			vec2 pos = tmpPos.xy;
+
+			gl_PointSize = pointSize;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( pos.x, pos.y, position.z, 1.0 ); // position holds the real z value. The z value of "color" is a component of velocity
+			// gl_Position = vec4( color, 1.0 );
+			// gl_Position = projectionMatrix * modelViewMatrix * vec4( position * 200.0, 1.0 );
+
+	    }
+
+	</script>
+
+	<script id="fs-particles" type="x-shader/x-fragment">
+	    uniform sampler2D tPositions;
+		uniform sampler2D texture;
+	    
+	    varying vec2 vTextureCoords;
+        varying vec2 vTextureSize;	    
+	    
+	    void main() {
+
+	    	// float depth = smoothstep( 750.0, -500.0, gl_FragCoord.z / gl_FragCoord.w );
+			// gl_FragColor = vec4( texture2D( map, vUv ).xyz, 1.0 );
+
+			gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 );
+
+	        // calculates a color for the particle
+	        vec2 realTexCoord = vTextureCoords + ( gl_PointCoord * vTextureSize );
+            gl_FragColor = gl_FragColor * texture2D( texture, realTexCoord );
+	        // gl_FragColor = gl_FragColor * texture2D( texture, gl_PointCoord );
+	    }
+
+	</script>
+
+	// <script id="vs-copy" type="x-shader/x-vertex">
+
+	// 	uniform sampler2D map;
+	// 	varying vec2 vUv;
+
+	// 	void main() {
+
+	// 		vUv = position.xy;
+	// 		gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+	// 	}
+
+	// </script>
+
+	// <script id="fs-copy" type="x-shader/x-fragment">
+
+	// 	uniform sampler2D map;
+	// 	varying vec2 vUv;
+
+	// 	void main() {
+
+	// 		gl_FragColor = texture2D( map, vUv );
+
+	// 	}
+
+	// </script>
+
+	<!-- Custom Scripts -->
+	<script type="text/javascript" src="/shader_physics_test.js"></script>
+
+
+</body>
+</html>
