@@ -39,6 +39,10 @@
 
 	    varying vec2 vUv;
 
+	    // float map( value, startRangeLow, startRangeHigh, targetRangeLow, targetRangeHigh ) {
+	    // 	return targetRangeLow, + (value - startRangeLow) * ( (targetRangeHigh - targetRangeLow,) / (startRangeHigh - startRangeLow) );
+	    // }
+
 	    float hash(float n) { return fract(sin(n) * 1e4); }
 	    
 	    float noise(float x) {
@@ -115,11 +119,23 @@
 	   }
 	</script>
 
-	<!-- zz85 - end simulations -->
+	<script id="xOffD_fragment_shader" type="x-shader/x-fragment">
+
+	    void main() {
+
+	    	vec2 uv = gl_FragCoord.xy / resolution.xy;
+	    	
+	    	vec4 xOffD = texture2D( tXOffD, uv ).xyzw;
+	    	gl_FragColor = vec4( xOffD.x + 0.02, 0.0, 0.0, 0.0 );
+
+	    }
+	    	
+    </script>
 	    
 	<script id="vs-particles" type="x-shader/x-vertex">
 
 	    uniform sampler2D tPositions;
+	    uniform sampler2D tXOffD;
 
 		uniform float width;
 	    uniform float height;
@@ -132,7 +148,16 @@
 
 	    varying vec2 vTextureCoords;
         varying vec2 vTextureSize;
-
+        varying float density;
+        
+        float hash(float n) { return fract(sin(n) * 1e4); }
+	    
+	    float noise(float x) {
+	        float i = floor(x);
+	        float f = fract(x);
+	        float u = f * f * (3.0 - 2.0 * f);
+	        return mix(hash(i), hash(i + 1.0), u);
+	    }
 
 		void main() {
 
@@ -142,7 +167,10 @@
 			vec4 tmpPos = texture2D( tPositions, position.xy );
 			vec2 pos = tmpPos.xy;
 
-			gl_PointSize = pointSize;
+			float xOffD = texture2D( tXOffD, position.xy ).x;
+            density = noise(xOffD);
+
+			gl_PointSize = pointSize * density;
 			gl_Position = projectionMatrix * modelViewMatrix * vec4( pos.x, pos.y, position.z, 1.0 ); // position holds the real z value. The z value of "color" is a component of velocity
 			// gl_Position = vec4( color, 1.0 );
 			// gl_Position = projectionMatrix * modelViewMatrix * vec4( position * 200.0, 1.0 );
@@ -156,14 +184,15 @@
 		uniform sampler2D texture;
 	    
 	    varying vec2 vTextureCoords;
-        varying vec2 vTextureSize;	    
+        varying vec2 vTextureSize;	
+        varying float density;    
 	    
 	    void main() {
 
 	    	// float depth = smoothstep( 750.0, -500.0, gl_FragCoord.z / gl_FragCoord.w );
 			// gl_FragColor = vec4( texture2D( map, vUv ).xyz, 1.0 );
 
-			gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 );
+			gl_FragColor = vec4( 1.0, 1.0, 1.0, density );
 
 	        // calculates a color for the particle
 	        vec2 realTexCoord = vTextureCoords + ( gl_PointCoord * vTextureSize );
