@@ -67,47 +67,13 @@ function init() {
 
     // particles
 
-	geometry = new THREE.BufferGeometry();
-
-    var positions2 = new Float32Array( particles * 3 );
-    var textureIndexArray = new Float32Array( particles );
-    var xOffD = new Float32Array( particles * 3 );
-
-	for ( var j = 0, j3 = 0, l = width * height; j < l; j ++, j3 += 3 ) {
-
-		positions2[ j3 + 0 ] = ( j % width ) / width ;
-		positions2[ j3 + 1 ]  = Math.floor( j / width ) / height;
-		positions2[ j3 + 2 ]  = l * 0.01; // this is the real z value for the particle display
-
-        textureIndexArray[ j ] = getRandomIntInclusive( 0,9 );
-
-        xOffD[ j3 + 0 ] = getRandomArbitrary( 0.3, 0.5 ); // getRandomIntInclusive( 0, 1 );// - gridPositions[ i4 + 0 ]; // width offset
-        xOffD[ j3 + 1 ] = getRandomArbitrary( 0.6, 1.0 );// - gridPositions[ i4 + 1 ]; // height offset
-        xOffD[ j3 + 2 ] = 0.0; // not used
-
-	}
-
-    console.log("textureIndexArray");
-    console.log(textureIndexArray);
-
-    // console.log("xOffD");
-    // console.log(xOffD);
-
-	geometry.addAttribute( 'position', new THREE.BufferAttribute( positions2, 3 ) );
-    geometry.addAttribute( 'aTextureIndex', new THREE.BufferAttribute( textureIndexArray, 1 ) );
-
-    xOffDTexture = new THREE.DataTexture( xOffD, width, height, THREE.RGBFormat, THREE.FloatType );
-    // xOffDTexture.wrapS = THREE.RepeatWrapping;
-    // xOffDTexture.wrapT = THREE.RepeatWrapping;
-    xOffDTexture.needsUpdate = true;
-
-    // console.log( xOffDTexture );
+	
     
     var numTexturesInSheet = 10.0;
 
     particleUniforms = {
         "tPositions": { type: "t", value: null },
-        "tXOffD": { type: "t", value: xOffDTexture },
+        "tXOffD": { type: "t", value: null }, //xOffDTexture },
         "texture": { type: "t", value: new THREE.TextureLoader().load( "/hatchSheet.png" ) },
         "width": { type: "f", value: width },
         "height": { type: "f", value: height },
@@ -134,6 +100,48 @@ function init() {
 	scene.add(axis1);
 
     window.addEventListener( 'resize', onWindowResize, false );
+}
+
+function makeGridOfClouds() {
+
+    geometry = new THREE.BufferGeometry();
+
+    var positions2 = new Float32Array( particles * 3 );
+    var textureIndexArray = new Float32Array( particles );
+    // var xOffD = new Float32Array( particles * 3 );
+
+    for ( var j = 0, j3 = 0, l = width * height; j < l; j ++, j3 += 3 ) {
+
+        positions2[ j3 + 0 ] = ( j % width ) / width ;
+        positions2[ j3 + 1 ]  = Math.floor( j / width ) / height;
+        positions2[ j3 + 2 ]  = l * 0.01; // this is the real z value for the particle display
+
+        textureIndexArray[ j ] = getRandomIntInclusive( 0,9 );
+
+        // xOffD[ j3 + 0 ] = getRandomArbitrary( 0.3, 0.5 ); // getRandomIntInclusive( 0, 1 );// - gridPositions[ i4 + 0 ]; // width offset
+        // xOffD[ j3 + 1 ] = getRandomArbitrary( 0.6, 1.0 );// - gridPositions[ i4 + 1 ]; // height offset
+        // xOffD[ j3 + 2 ] = 0.0; // not used
+
+    }
+
+    console.log("textureIndexArray");
+    console.log(textureIndexArray);
+
+    // console.log("xOffD");
+    // console.log(xOffD);
+
+    geometry.addAttribute( 'position', new THREE.BufferAttribute( positions2, 3 ) );
+    geometry.addAttribute( 'aTextureIndex', new THREE.BufferAttribute( textureIndexArray, 1 ) );
+
+    // xOffDTexture = new THREE.DataTexture( xOffD, width, height, THREE.RGBFormat, THREE.FloatType );
+    // // xOffDTexture.wrapS = THREE.RepeatWrapping;
+    // // xOffDTexture.wrapT = THREE.RepeatWrapping;
+    // xOffDTexture.needsUpdate = true;
+
+    // console.log( xOffDTexture );
+
+    return geometry;
+    
 }
 
 function initComputeRenderer() {
@@ -183,10 +191,12 @@ function initComputeRenderer() {
         // gridPositions[ i4 + 2 ] = 0.0;  // z
         // gridPositions[ i4 + 3 ] = 0.0;  // w - not used
 
-        // xOffD[ i4 + 0 ] = getRandomArbitrary( 0.1, 0.5 ); // getRandomIntInclusive( 0, 1 );// - gridPositions[ i4 + 0 ]; // width offset
-        // xOffD[ i4 + 1 ] = getRandomArbitrary( 0.5, 1.0 );// - gridPositions[ i4 + 1 ]; // height offset
-        // xOffD[ i4 + 2 ] = 0.0; // not used
-        // xOffD[ i4 + 3 ] = 0.0; // not used
+
+        // maybe in the final have velocity contribute as much as a 10% boost up to a maximum of 1.0 for opacity
+        xOffD[ i4 + 0 ] = getRandomArbitrary( 0.6, 0.8 ); // getRandomIntInclusive( 0, 1 );// - gridPositions[ i4 + 0 ]; // width offset
+        xOffD[ i4 + 1 ] = getRandomArbitrary( 0.8, 1.0 );// - gridPositions[ i4 + 1 ]; // height offset
+        xOffD[ i4 + 2 ] = 0.0; // not used
+        xOffD[ i4 + 3 ] = 0.0; // not used
         
         offsets[ i4 + 0 ] = positions[ i4 + 0 ];// - gridPositions[ i4 + 0 ]; // width offset
         offsets[ i4 + 1 ] = positions[ i4 + 1 ];// - gridPositions[ i4 + 1 ]; // height offset
@@ -205,11 +215,12 @@ function initComputeRenderer() {
     dtPosition.image.data = positions;
 
     positionVariable = gpuCompute.addVariable( "tPositions", document.getElementById( 'position_fragment_shader' ).textContent, dtPosition );
-    // xOffDVariable = gpuCompute.addVariable( "tXOffD", document.getElementById( 'xOffD_fragment_shader' ).textContent, xOffD );
+    xOffDVariable = gpuCompute.addVariable( "tXOffD", document.getElementById( 'xOffD_fragment_shader' ).textContent, xOffD );
 
     // gpuCompute.setVariableDependencies( velocityVariable, [ positionVariable, velocityVariable ] );
-    // gpuCompute.setVariableDependencies( xOffDVariable, [ xOffDVariable ] );
     gpuCompute.setVariableDependencies( positionVariable, [ positionVariable ] );
+    gpuCompute.setVariableDependencies( xOffDVariable, [ xOffDVariable, positionVariable ] );
+    
 
     positionUniforms = positionVariable.material.uniforms;
 
@@ -227,8 +238,8 @@ function initComputeRenderer() {
 
     positionVariable.wrapS = THREE.RepeatWrapping;
     positionVariable.wrapT = THREE.RepeatWrapping;
-    // xOffDVariable.wrapS = THREE.RepeatWrapping;
-    // xOffDVariable.wrapT = THREE.RepeatWrapping;
+    xOffDVariable.wrapS = THREE.RepeatWrapping;
+    xOffDVariable.wrapT = THREE.RepeatWrapping;
 
     var error = gpuCompute.init();
     if ( error !== null ) {
@@ -268,7 +279,7 @@ function update() {
     gpuCompute.compute();
 
     particleUniforms.tPositions.value = gpuCompute.getCurrentRenderTarget( positionVariable ).texture;
-    // particleUniforms.tXOffD.value = gpuCompute.getCurrentRenderTarget( xOffDVariable ).texture;
+    particleUniforms.tXOffD.value = gpuCompute.getCurrentRenderTarget( xOffDVariable ).texture;
     // renderer.clear();
 }
 

@@ -233,7 +233,14 @@
 	    	vec2 uv = gl_FragCoord.xy / resolution.xy;
 
 	    	vec4 xOffD = texture2D( tXOffD, uv ).xyzw;
-	    	gl_FragColor = vec4( xOffD.x + 0.02, 0.0, 0.0, 0.0 );
+	    	vec4 position = texture2D( tPositions, uv ).xyzw;
+
+	    	vec2 velocity = position.zw;
+
+	    	if (velocity.x * velocity.y > 0.0) {
+                gl_FragColor = vec4( xOffD.x + (velocity.x * velocity.y), 0.0, 0.0, 0.0 );
+	    	}
+	    	gl_FragColor = vec4( xOffD.x + 0.01, 0.0, 0.0, 0.0 );
 	    	// gl_FragColor = vec4( xOffD.x, xOffD.y, 0.0, 0.0 );
 
 	    }
@@ -395,11 +402,11 @@
 			vec2 vel = tmpPos.zw;
 
 			vec2 xOffD = texture2D( tXOffD, position.xy ).xy;
-            // density = cnoise( vec2( xOffD.x, 0.0 ) );
+            float densityNoise = abs(cnoise( vec2( xOffD.x, 0.0 ) ) );
             // density = cnoise( position.xy );
-            float densityNoise = cnoise( vel );
-            density = map( densityNoise, -1.0, 1.0, xOffD.x, xOffD.y );
-            // density = map( densityNoise, -1.0, 1.0, 0.3, 1.0 );
+            // float densityNoise = cnoise( vel );
+            // density = map( densityNoise, -1.0, 1.0, xOffD.x, xOffD.y );
+            density = map( densityNoise, 0.0, 1.0, 0.3, 1.0 );
             // density = surface( vec2( xOffD.x, xOffD.y ) );
             // density = vel.x + vel.y;
 
